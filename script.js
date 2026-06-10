@@ -215,7 +215,10 @@ const infoDiv = document.getElementById("solvent-info");
 function criarEsfera(radius, centro) {
   if (sphereMesh) scene.remove(sphereMesh);
 
-  const geometry = new THREE.SphereGeometry(radius, 64, 32);
+  // Prevenção de quebra de renderização para raios inválidos
+  const safeRadius = Math.max(radius, 0.1);
+
+  const geometry = new THREE.SphereGeometry(safeRadius, 64, 32);
   const material = new THREE.MeshPhongMaterial({
     color: 0x3399ff,
     transparent: true,
@@ -347,10 +350,13 @@ renderer.domElement.addEventListener("click", onClick);
 // ============================================
 function atualizarTabelaSolventes() {
   const tbody = document.getElementById("solventTableBody");
-  const sD = parseFloat(document.getElementById("soluteD").value);
-  const sP = parseFloat(document.getElementById("soluteP").value);
-  const sH = parseFloat(document.getElementById("soluteH").value);
-  const R = parseFloat(document.getElementById("sphereRadius").value);
+
+  // Validação silenciosa para evitar erros caso os campos fiquem momentaneamente vazios
+  const sD = parseFloat(document.getElementById("soluteD").value) || 0;
+  const sP = parseFloat(document.getElementById("soluteP").value) || 0;
+  const sH = parseFloat(document.getElementById("soluteH").value) || 0;
+  let R = parseFloat(document.getElementById("sphereRadius").value);
+  if (isNaN(R) || R <= 0) R = 1; // Proteção contra divisão por zero
 
   tbody.innerHTML = "";
   solvents.forEach((sol, index) => {
@@ -405,10 +411,12 @@ function atualizarTabelaSolventes() {
 // IA: Painel Analítico Industrial
 // ============================================
 function atualizarSugestaoIA() {
-  const sD = parseFloat(document.getElementById("soluteD").value);
-  const sP = parseFloat(document.getElementById("soluteP").value);
-  const sH = parseFloat(document.getElementById("soluteH").value);
-  const R = parseFloat(document.getElementById("sphereRadius").value);
+  const sD = parseFloat(document.getElementById("soluteD").value) || 0;
+  const sP = parseFloat(document.getElementById("soluteP").value) || 0;
+  const sH = parseFloat(document.getElementById("soluteH").value) || 0;
+  let R = parseFloat(document.getElementById("sphereRadius").value);
+
+  if (isNaN(R) || R <= 0) R = 1; // Proteção estrita do Raio
 
   const nomeSoluto = "Polímero/Soluto Alvo";
 
@@ -423,7 +431,7 @@ function atualizarSugestaoIA() {
     const deltaP2 = Math.pow(s.p - sP, 2);
     const deltaH2 = Math.pow(s.h - sH, 2);
     const dist = Math.sqrt(deltaD2 + deltaP2 + deltaH2);
-    const red = dist / (R || 1);
+    const red = dist / R;
 
     let diferencaCritica = "Dispersão (δD)";
     let maxDelta = deltaD2;
@@ -507,6 +515,14 @@ function recomendar() {
   const sP = parseFloat(document.getElementById("soluteP").value);
   const sH = parseFloat(document.getElementById("soluteH").value);
 
+  // Validação antes de ordenar
+  if (isNaN(sD) || isNaN(sP) || isNaN(sH)) {
+    alert(
+      "Certifique-se de que os parâmetros do soluto sejam válidos antes de recomendar.",
+    );
+    return;
+  }
+
   const comDistancia = solvents.map((s) => ({
     ...s,
     dist: Math.sqrt(
@@ -526,6 +542,18 @@ function recomendar() {
 // EXPORTAR PDF
 // ============================================
 function exportPDF() {
+  const d = parseFloat(document.getElementById("soluteD").value);
+  const p = parseFloat(document.getElementById("soluteP").value);
+  const h = parseFloat(document.getElementById("soluteH").value);
+  const R = parseFloat(document.getElementById("sphereRadius").value);
+
+  if (isNaN(d) || isNaN(p) || isNaN(h) || isNaN(R)) {
+    alert(
+      "Preencha corretamente os parâmetros do Soluto antes de exportar o PDF.",
+    );
+    return;
+  }
+
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF("landscape", "mm", "a4");
 
@@ -535,11 +563,6 @@ function exportPDF() {
   const usableWidth = pageWidth - margin * 2;
 
   let currentY = margin;
-
-  const sD = parseFloat(document.getElementById("soluteD").value);
-  const sP = parseFloat(document.getElementById("soluteP").value);
-  const sH = parseFloat(document.getElementById("soluteH").value);
-  const R = parseFloat(document.getElementById("sphereRadius").value);
 
   html2canvas(container, {
     scale: 2.5,
@@ -581,9 +604,9 @@ function exportPDF() {
 
     pdf.setFont(undefined, "normal");
     pdf.rect(margin, currentY, usableWidth, 18);
-    pdf.text(`δD: ${sD}`, margin + 5, currentY + 6);
-    pdf.text(`δP: ${sP}`, margin + 60, currentY + 6);
-    pdf.text(`δH: ${sH}`, margin + 115, currentY + 6);
+    pdf.text(`δD: ${d}`, margin + 5, currentY + 6);
+    pdf.text(`δP: ${p}`, margin + 60, currentY + 6);
+    pdf.text(`δH: ${h}`, margin + 115, currentY + 6);
     pdf.text(`Raio (R): ${R}`, margin + 170, currentY + 6);
 
     currentY += 25;
@@ -596,9 +619,9 @@ function exportPDF() {
 
     solvents.forEach((sol, index) => {
       const dist = Math.sqrt(
-        4 * Math.pow(sol.d - sD, 2) +
-          Math.pow(sol.p - sP, 2) +
-          Math.pow(sol.h - sH, 2),
+        4 * Math.pow(sol.d - d, 2) +
+          Math.pow(sol.p - p, 2) +
+          Math.pow(sol.h - h, 2),
       );
 
       const dentro = dist <= R ? "Compatível" : "Não compatível";
@@ -616,34 +639,35 @@ function exportPDF() {
 
     currentY += 8;
 
-    const ordenados = solvents
-      .map((s) => ({
-        ...s,
-        dist: Math.sqrt(
-          4 * Math.pow(s.d - sD, 2) +
-            Math.pow(s.p - sP, 2) +
-            Math.pow(s.h - sH, 2),
-        ),
-      }))
-      .sort((a, b) => a.dist - b.dist);
+    if (solvents.length > 0) {
+      const ordenados = solvents
+        .map((s) => ({
+          ...s,
+          dist: Math.sqrt(
+            4 * Math.pow(s.d - d, 2) +
+              Math.pow(s.p - p, 2) +
+              Math.pow(s.h - h, 2),
+          ),
+        }))
+        .sort((a, b) => a.dist - b.dist);
 
-    const melhor = ordenados[0];
-    const compativeis = ordenados.filter((s) => s.dist <= R);
+      const melhor = ordenados[0];
+      const compativeis = ordenados.filter((s) => s.dist <= R);
 
-    if (currentY > pageHeight - margin - 20) {
-      pdf.addPage();
-      currentY = margin;
-    }
+      if (currentY > pageHeight - margin - 20) {
+        pdf.addPage();
+        currentY = margin;
+      }
 
-    pdf.setFontSize(12);
-    pdf.setFont(undefined, "bold");
-    pdf.text("Análise Técnica Conclusiva", margin, currentY);
-    currentY += 8;
+      pdf.setFontSize(12);
+      pdf.setFont(undefined, "bold");
+      pdf.text("Análise Técnica Conclusiva", margin, currentY);
+      currentY += 8;
 
-    pdf.setFont(undefined, "normal");
-    pdf.setFontSize(11);
+      pdf.setFont(undefined, "normal");
+      pdf.setFontSize(11);
 
-    const textoAnalise = `
+      const textoAnalise = `
 O solvente com menor distância paramétrica é ${melhor.nome},
 com valor Ra de ${melhor.dist.toFixed(2)}.
 
@@ -653,10 +677,13 @@ Solventes fora da esfera (Separação de Fases): ${solvents.length - compativeis
 
 Lembrando que o cálculo leva em consideração a diferença relativa de energia (RED)
 e o fator de peso correto (x4) para as interações de dispersão (δD).
-    `;
+      `;
 
-    const linhas = pdf.splitTextToSize(textoAnalise, usableWidth);
-    pdf.text(linhas, margin, currentY);
+      const linhas = pdf.splitTextToSize(textoAnalise, usableWidth);
+      pdf.text(linhas, margin, currentY);
+    } else {
+      pdf.text("Nenhum solvente avaliado.", margin, currentY);
+    }
 
     pdf.save(`hansen_relatorio_${new Date().toISOString().slice(0, 10)}.pdf`);
   });
@@ -720,13 +747,31 @@ function carregarSolventesIniciais() {
 }
 
 // ============================================
-// EVENTOS DOS CONTROLES HTML
+// EVENTOS DOS CONTROLES HTML COM VALIDAÇÕES
 // ============================================
 document.getElementById("updateSoluteBtn").addEventListener("click", () => {
   const d = parseFloat(document.getElementById("soluteD").value);
   const p = parseFloat(document.getElementById("soluteP").value);
   const h = parseFloat(document.getElementById("soluteH").value);
   const r = parseFloat(document.getElementById("sphereRadius").value);
+
+  // Validações de Bloqueio
+  if (isNaN(d) || isNaN(p) || isNaN(h) || isNaN(r)) {
+    alert("Erro: Preencha todos os campos do Soluto com números válidos.");
+    return;
+  }
+  if (d < 0 || p < 0 || h < 0) {
+    alert(
+      "Erro Físico: Os Parâmetros de Hansen (δD, δP, δH) não podem ser negativos.",
+    );
+    return;
+  }
+  if (r <= 0) {
+    alert(
+      "Erro Matemático: O Raio da esfera de interação deve ser maior que zero.",
+    );
+    return;
+  }
 
   criarEsfera(r, new THREE.Vector3(d, p, h));
   atualizarSoluto(d, p, h);
@@ -735,18 +780,33 @@ document.getElementById("updateSoluteBtn").addEventListener("click", () => {
 
 document.getElementById("addSolventBtn").addEventListener("click", () => {
   const nome = document.getElementById("solventName").value.trim();
-  if (!nome) {
-    alert("Digite um nome para o solvente");
-    return;
-  }
   const d = parseFloat(document.getElementById("solventD").value);
   const p = parseFloat(document.getElementById("solventP").value);
   const h = parseFloat(document.getElementById("solventH").value);
   const cor = document.getElementById("solventColor").value;
 
+  // Validações de Bloqueio
+  if (!nome) {
+    alert("Erro: Digite um nome para o solvente.");
+    return;
+  }
+  if (isNaN(d) || isNaN(p) || isNaN(h)) {
+    alert(
+      "Erro: Preencha os campos de propriedades do Solvente com números numéricos válidos.",
+    );
+    return;
+  }
+  if (d < 0 || p < 0 || h < 0) {
+    alert(
+      "Erro Físico: Os Parâmetros de Hansen (δD, δP, δH) de um solvente não podem ser negativos.",
+    );
+    return;
+  }
+
   solvents.push({ nome, d, p, h, cor });
   atualizarSolventes3D();
 
+  // Resetar apenas se inserção ocorrer com sucesso
   document.getElementById("solventName").value = "";
   document.getElementById("solventD").value = "0.0";
   document.getElementById("solventP").value = "0.0";
