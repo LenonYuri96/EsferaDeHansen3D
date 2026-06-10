@@ -11,6 +11,7 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   1000,
 );
+
 if (window.innerWidth < 768) {
   camera.position.set(55, 45, 55);
 } else {
@@ -85,6 +86,7 @@ function criarPlanoComBordas(tamanho, cor, posicao, rotacao, opacidade = 0.03) {
   bordas.rotation.set(rotacao.x, rotacao.y, rotacao.z);
   scene.add(bordas);
 }
+
 function criarGradePositivaPlano(
   plano,
   tamanho,
@@ -97,42 +99,33 @@ function criarGradePositivaPlano(
 
   for (let i = 0; i <= divisoes; i++) {
     const pos = i * step;
-
     let pontos1, pontos2;
 
-    // Plano D–P (XY)
     if (plano === "XY") {
       pontos1 = [
         new THREE.Vector3(0, pos, 0),
         new THREE.Vector3(tamanho, pos, 0),
       ];
-
       pontos2 = [
         new THREE.Vector3(pos, 0, 0),
         new THREE.Vector3(pos, tamanho, 0),
       ];
     }
-
-    // Plano H–P (YZ)
     if (plano === "YZ") {
       pontos1 = [
         new THREE.Vector3(0, pos, 0),
         new THREE.Vector3(0, pos, tamanho),
       ];
-
       pontos2 = [
         new THREE.Vector3(0, 0, pos),
         new THREE.Vector3(0, tamanho, pos),
       ];
     }
-
-    // Plano D–H (XZ)
     if (plano === "XZ") {
       pontos1 = [
         new THREE.Vector3(0, 0, pos),
         new THREE.Vector3(tamanho, 0, pos),
       ];
-
       pontos2 = [
         new THREE.Vector3(pos, 0, 0),
         new THREE.Vector3(pos, 0, tamanho),
@@ -147,7 +140,6 @@ function criarGradePositivaPlano(
       new THREE.BufferGeometry().setFromPoints(pontos1),
       material,
     );
-
     const linha2 = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints(pontos2),
       material,
@@ -156,21 +148,12 @@ function criarGradePositivaPlano(
     grupo.add(linha1);
     grupo.add(linha2);
   }
-
   scene.add(grupo);
 }
-// D–P (Plano XY) grudado em δD e δP
-criarGradePositivaPlano(
-  "XY",
-  30, // até o fim dos eixos visíveis
-  40, // DOBRO da densidade
-  0x999999,
-  0xdddddd,
-);
 
-// H–P (Plano YZ) grudado em δH e δP
+// Planos grudados aos eixos
+criarGradePositivaPlano("XY", 30, 40, 0x999999, 0xdddddd);
 criarGradePositivaPlano("YZ", 30, 40, 0x999999, 0xdddddd);
-
 criarGradePositivaPlano("XZ", 30, 40, 0x999999, 0xdddddd);
 
 // ============================================
@@ -225,9 +208,6 @@ scene.add(solventGroup);
 
 // Info box flutuante
 const infoDiv = document.getElementById("solvent-info");
-if (!infoDiv) {
-  console.error("Elemento #solvent-info não encontrado!");
-}
 
 // ============================================
 // FUNÇÕES PARA CRIAR/ATUALIZAR ESFERA E SOLUTO
@@ -260,7 +240,6 @@ function criarEsfera(radius, centro) {
 function atualizarSoluto(d, p, h) {
   if (solutePoint) scene.remove(solutePoint);
 
-  // Soluto em branco para ficar visível, mas sem chamar atenção
   const geom = new THREE.SphereGeometry(0.9, 20, 20);
   const mat = new THREE.MeshStandardMaterial({
     color: 0xffffff, // branco
@@ -307,7 +286,6 @@ function atualizarSolventes3D() {
 // ============================================
 function mostrarInfo(tipo, dados) {
   if (!infoDiv) return;
-  // Remove a classe d-none do Bootstrap e garante display block
   infoDiv.classList.remove("d-none");
   infoDiv.style.display = "block";
   if (tipo === "solvent") {
@@ -327,7 +305,6 @@ function mostrarInfo(tipo, dados) {
       <span style="color: ${dados.cor};">●</span> Cor: ${dados.cor}
     `;
   }
-  console.log("Info exibida para:", tipo, dados); // log para debug
 }
 
 // ============================================
@@ -343,7 +320,6 @@ function onClick(event) {
   const raycaster = new THREE.Raycaster();
   raycaster.setFromCamera(mouse, camera);
 
-  // Objetos clicáveis: solventes e soluto
   const clickableObjects = [...solventGroup.children];
   if (solutePoint) clickableObjects.push(solutePoint);
 
@@ -352,7 +328,6 @@ function onClick(event) {
   if (intersects.length > 0) {
     const hit = intersects[0].object;
     const userData = hit.userData;
-    console.log("Clique detectado em:", userData); // log para debug
 
     if (userData.type === "solvent") {
       mostrarInfo("solvent", userData.data);
@@ -360,7 +335,6 @@ function onClick(event) {
       mostrarInfo("soluto", userData);
     }
   } else {
-    // Esconde a info box ao clicar no fundo
     infoDiv.classList.add("d-none");
     infoDiv.style.display = "none";
   }
@@ -380,8 +354,9 @@ function atualizarTabelaSolventes() {
 
   tbody.innerHTML = "";
   solvents.forEach((sol, index) => {
+    // Cálculo com Fator 4 no parâmetro de dispersão
     const dist = Math.sqrt(
-      Math.pow(sol.d - sD, 2) +
+      4 * Math.pow(sol.d - sD, 2) +
         Math.pow(sol.p - sP, 2) +
         Math.pow(sol.h - sH, 2),
     );
@@ -401,10 +376,8 @@ function atualizarTabelaSolventes() {
     tbody.appendChild(linha);
   });
 
-  // Evento de clique na linha da tabela (para mostrar info do solvente)
   document.querySelectorAll("#solventTableBody tr").forEach((row) => {
     row.addEventListener("click", (e) => {
-      // Evitar que o clique no botão de remover também dispare
       if (e.target.closest(".remove-solvent")) return;
       const idx = row.getAttribute("data-solvent-index");
       if (idx !== null) {
@@ -414,10 +387,9 @@ function atualizarTabelaSolventes() {
     });
   });
 
-  // Evento para botões de remover
   document.querySelectorAll(".remove-solvent").forEach((btn) => {
     btn.addEventListener("click", (e) => {
-      e.stopPropagation(); // evita que o clique na linha seja acionado
+      e.stopPropagation();
       const idx = e.currentTarget.getAttribute("data-index");
       solvents.splice(idx, 1);
       atualizarSolventes3D();
@@ -430,7 +402,7 @@ function atualizarTabelaSolventes() {
 }
 
 // ============================================
-// IA: Sugestão do melhor solvente
+// IA: Painel Analítico Industrial
 // ============================================
 function atualizarSugestaoIA() {
   const sD = parseFloat(document.getElementById("soluteD").value);
@@ -438,26 +410,93 @@ function atualizarSugestaoIA() {
   const sH = parseFloat(document.getElementById("soluteH").value);
   const R = parseFloat(document.getElementById("sphereRadius").value);
 
+  const nomeSoluto = "Polímero/Soluto Alvo";
+
   if (solvents.length === 0) {
     document.getElementById("iaSuggestion").innerHTML =
-      "Adicione solventes para ver sugestões.";
+      "<p class='text-muted'>Adicione solventes no banco para gerar a análise industrial.</p>";
     return;
   }
 
-  const comDist = solvents.map((s) => ({
-    ...s,
-    dist: Math.sqrt(
-      Math.pow(s.d - sD, 2) + Math.pow(s.p - sP, 2) + Math.pow(s.h - sH, 2),
-    ),
-  }));
-  comDist.sort((a, b) => a.dist - b.dist);
-  const melhor = comDist[0];
-  const estaDentro = melhor.dist <= R;
-  const status = estaDentro ? "✅ dentro" : "❌ fora";
-  document.getElementById("iaSuggestion").innerHTML = `
-    <strong>${melhor.nome}</strong> (dist: ${melhor.dist.toFixed(2)})<br>
-    <small>Melhor candidato, ${status} da esfera.</small>
+  const analise = solvents.map((s) => {
+    const deltaD2 = 4 * Math.pow(s.d - sD, 2);
+    const deltaP2 = Math.pow(s.p - sP, 2);
+    const deltaH2 = Math.pow(s.h - sH, 2);
+    const dist = Math.sqrt(deltaD2 + deltaP2 + deltaH2);
+    const red = dist / (R || 1);
+
+    let diferencaCritica = "Dispersão (δD)";
+    let maxDelta = deltaD2;
+    if (deltaP2 > maxDelta) {
+      diferencaCritica = "Polaridade (δP)";
+      maxDelta = deltaP2;
+    }
+    if (deltaH2 > maxDelta) {
+      diferencaCritica = "Pontes de Hidrogênio (δH)";
+      maxDelta = deltaH2;
+    }
+
+    return { ...s, dist, red, diferencaCritica };
+  });
+
+  analise.sort((a, b) => a.dist - b.dist);
+
+  const otimos = analise.filter((s) => s.red <= 1.0);
+  const parciais = analise.filter((s) => s.red > 1.0 && s.red <= 1.5);
+
+  const top3 = analise.slice(0, 3);
+  const melhor = top3[0];
+
+  let relatorioHTML = `
+    <div style="background-color: var(--bs-light); padding: 18px; border-radius: 8px; border-left: 6px solid #6f42c1; font-size: 0.95em;">
+      <h5 style="color: #6f42c1; font-weight: bold; margin-bottom: 15px;"><i class="bi bi-cpu"></i> Parecer Analítico do Sistema</h5>
   `;
+
+  if (otimos.length > 0) {
+    relatorioHTML += `
+      <p>Encontramos <strong>${otimos.length} solvente(s) puro(s)</strong> capazes de dissolver completamente o ${nomeSoluto} (RED ≤ 1.0).</p>
+      <div style="margin-bottom: 15px;">
+        <strong>Top 3 Recomendações:</strong>
+        <ol style="margin-top: 5px; padding-left: 20px;">
+          ${top3
+            .map(
+              (s) => `
+            <li>
+              <strong>${s.nome}</strong> 
+              <span class="badge ${s.red <= 1.0 ? "bg-success" : "bg-warning text-dark"} ms-2">RED: ${s.red.toFixed(2)}</span><br>
+              <span style="font-size: 0.85em; color: gray;">Limitação principal: ${s.diferencaCritica}</span>
+            </li>
+          `,
+            )
+            .join("")}
+        </ol>
+      </div>
+    `;
+  } else {
+    relatorioHTML += `
+      <div class="alert alert-warning" style="padding: 10px;">
+        <strong>Atenção:</strong> Nenhum solvente puro no banco atual apresenta dissolução garantida (RED ≤ 1.0).
+      </div>
+      <p style="margin-bottom: 10px;">O mais próximo é o <strong>${melhor.nome}</strong> (RED: ${melhor.red.toFixed(2)}). Ele causará inchaço (swelling) no material, mas não o dissolverá completamente devido à diferença em <strong>${melhor.diferencaCritica}</strong>.</p>
+      
+      <div style="background-color: rgba(255,193,7,0.2); padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+        <i class="bi bi-lightbulb-fill text-warning"></i> <strong>Estratégia Industrial (Blend):</strong> 
+        Recomenda-se criar uma mistura (co-solvente). Se o ${melhor.nome} falha por baixa polaridade, adicione um solvente polar da lista (como Cetonas ou Álcoois) para trazer as coordenadas médias do blend para dentro da esfera (RED < 1).
+      </div>
+    `;
+  }
+
+  relatorioHTML += `
+      <hr style="opacity: 0.2;">
+      <div style="display: flex; justify-content: space-between; font-size: 0.85em; color: var(--bs-secondary);">
+        <span><i class="bi bi-database"></i> Avaliados: ${analise.length}</span>
+        <span><i class="bi bi-check-circle text-success"></i> Ideais: ${otimos.length}</span>
+        <span><i class="bi bi-exclamation-circle text-warning"></i> Parciais: ${parciais.length}</span>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("iaSuggestion").innerHTML = relatorioHTML;
 }
 
 // ============================================
@@ -467,22 +506,20 @@ function recomendar() {
   const sD = parseFloat(document.getElementById("soluteD").value);
   const sP = parseFloat(document.getElementById("soluteP").value);
   const sH = parseFloat(document.getElementById("soluteH").value);
-  const R = parseFloat(document.getElementById("sphereRadius").value);
 
   const comDistancia = solvents.map((s) => ({
     ...s,
     dist: Math.sqrt(
-      Math.pow(s.d - sD, 2) + Math.pow(s.p - sP, 2) + Math.pow(s.h - sH, 2),
+      4 * Math.pow(s.d - sD, 2) + Math.pow(s.p - sP, 2) + Math.pow(s.h - sH, 2),
     ),
   }));
   comDistancia.sort((a, b) => a.dist - b.dist);
 
-  // Atualiza a ordem do array original para refletir na tabela
   solvents = comDistancia.map((item) => {
     return { nome: item.nome, d: item.d, p: item.p, h: item.h, cor: item.cor };
   });
 
-  atualizarSolventes3D(); // isso já atualiza a tabela e o 3D
+  atualizarSolventes3D();
 }
 
 // ============================================
@@ -504,9 +541,6 @@ function exportPDF() {
   const sH = parseFloat(document.getElementById("soluteH").value);
   const R = parseFloat(document.getElementById("sphereRadius").value);
 
-  // =====================================================
-  // 1) CAPTURA DO 3D COM ESCALA AJUSTADA
-  // =====================================================
   html2canvas(container, {
     scale: 2.5,
     backgroundColor: "#ffffff",
@@ -515,7 +549,6 @@ function exportPDF() {
     const imgData = canvas3D.toDataURL("image/png");
     const aspect = canvas3D.height / canvas3D.width;
 
-    // Limita a altura máxima para não cortar
     const max3DHeight = pageHeight * 0.55;
     let imgWidth = usableWidth;
     let imgHeight = imgWidth * aspect;
@@ -534,25 +567,19 @@ function exportPDF() {
     });
 
     currentY += 10;
-
     pdf.setDrawColor(180);
     pdf.line(margin, currentY, pageWidth - margin, currentY);
-
     currentY += 8;
 
     pdf.addImage(imgData, "PNG", centerX, currentY, imgWidth, imgHeight);
     currentY += imgHeight + 10;
 
-    // =====================================================
-    // 2) PARÂMETROS DO SOLUTO (BOX ORGANIZADO)
-    // =====================================================
     pdf.setFontSize(12);
     pdf.setFont(undefined, "bold");
     pdf.text("Parâmetros do Soluto", margin, currentY);
     currentY += 6;
 
     pdf.setFont(undefined, "normal");
-
     pdf.rect(margin, currentY, usableWidth, 18);
     pdf.text(`δD: ${sD}`, margin + 5, currentY + 6);
     pdf.text(`δP: ${sP}`, margin + 60, currentY + 6);
@@ -561,9 +588,6 @@ function exportPDF() {
 
     currentY += 25;
 
-    // =====================================================
-    // 3) TABELA ORGANIZADA
-    // =====================================================
     pdf.setFont(undefined, "bold");
     pdf.text("Avaliação dos Solventes", margin, currentY);
     currentY += 8;
@@ -572,7 +596,7 @@ function exportPDF() {
 
     solvents.forEach((sol, index) => {
       const dist = Math.sqrt(
-        Math.pow(sol.d - sD, 2) +
+        4 * Math.pow(sol.d - sD, 2) +
           Math.pow(sol.p - sP, 2) +
           Math.pow(sol.h - sH, 2),
       );
@@ -584,7 +608,7 @@ function exportPDF() {
         currentY = margin;
       }
 
-      const linha = `${index + 1}. ${sol.nome}  |  Distância: ${dist.toFixed(2)}  |  ${dentro}`;
+      const linha = `${index + 1}. ${sol.nome}  |  Distância (Ra): ${dist.toFixed(2)}  |  ${dentro}`;
       pdf.text(linha, margin, currentY);
 
       currentY += 5;
@@ -592,20 +616,19 @@ function exportPDF() {
 
     currentY += 8;
 
-    // =====================================================
-    // 4) ANÁLISE TÉCNICA APRIMORADA
-    // =====================================================
     const ordenados = solvents
       .map((s) => ({
         ...s,
         dist: Math.sqrt(
-          Math.pow(s.d - sD, 2) + Math.pow(s.p - sP, 2) + Math.pow(s.h - sH, 2),
+          4 * Math.pow(s.d - sD, 2) +
+            Math.pow(s.p - sP, 2) +
+            Math.pow(s.h - sH, 2),
         ),
       }))
       .sort((a, b) => a.dist - b.dist);
 
     const melhor = ordenados[0];
-    const compatíveis = ordenados.filter((s) => s.dist <= R);
+    const compativeis = ordenados.filter((s) => s.dist <= R);
 
     if (currentY > pageHeight - margin - 20) {
       pdf.addPage();
@@ -622,14 +645,14 @@ function exportPDF() {
 
     const textoAnalise = `
 O solvente com menor distância paramétrica é ${melhor.nome},
-com valor ${melhor.dist.toFixed(2)}.
+com valor Ra de ${melhor.dist.toFixed(2)}.
 
 Total de solventes avaliados: ${solvents.length}.
-Solventes dentro da esfera: ${compatíveis.length}.
-Solventes fora da esfera: ${solvents.length - compatíveis.length}.
+Solventes dentro da esfera (Mistura Estável): ${compativeis.length}.
+Solventes fora da esfera (Separação de Fases): ${solvents.length - compativeis.length}.
 
-Quanto menor a distância, maior a similaridade de parâmetros
-de dispersão, polaridade e ligações de hidrogênio.
+Lembrando que o cálculo leva em consideração a diferença relativa de energia (RED)
+e o fator de peso correto (x4) para as interações de dispersão (δD).
     `;
 
     const linhas = pdf.splitTextToSize(textoAnalise, usableWidth);
@@ -638,17 +661,61 @@ de dispersão, polaridade e ligações de hidrogênio.
     pdf.save(`hansen_relatorio_${new Date().toISOString().slice(0, 10)}.pdf`);
   });
 }
+
 // ============================================
-// CARREGAR SOLVENTES INICIAIS
+// CARREGAR SOLVENTES INICIAIS (BANCO INDUSTRIAL)
 // ============================================
 function carregarSolventesIniciais() {
   solvents = [
-    { nome: "Point", d: 25.0, p: 5.0, h: 10.0, cor: "#ff5555" },
-    { nome: "H", d: 27.5, p: 8.0, h: 11.0, cor: "#55ff55" },
-    { nome: "P", d: 27.5, p: 9.0, h: 12.0, cor: "#5555ff" },
-    { nome: "Tolueno", d: 18.0, p: 2.0, h: 3.0, cor: "#ffaa00" },
-    { nome: "Etanol", d: 15.0, p: 8.0, h: 10.0, cor: "#00ccff" },
+    // Água e Álcoois
+    { nome: "Água", d: 15.5, p: 16.0, h: 42.3, cor: "#0077b6" },
+    { nome: "Metanol", d: 15.1, p: 12.3, h: 22.3, cor: "#023e8a" },
+    { nome: "Etanol", d: 15.8, p: 8.8, h: 19.4, cor: "#00ccff" },
+    { nome: "Isopropanol (IPA)", d: 15.8, p: 6.1, h: 16.4, cor: "#48cae4" },
+    { nome: "n-Butanol", d: 16.0, p: 5.7, h: 15.8, cor: "#90e0ef" },
+    { nome: "Glicerol", d: 17.4, p: 12.1, h: 29.3, cor: "#9d4edd" },
+    { nome: "Propilenoglicol", d: 16.8, p: 9.4, h: 23.3, cor: "#c77dff" },
+
+    // Cetonas
+    { nome: "Acetona", d: 15.5, p: 10.4, h: 7.0, cor: "#e76f51" },
+    { nome: "MEK", d: 16.0, p: 9.0, h: 5.1, cor: "#e9c46a" },
+    { nome: "MIBK", d: 15.3, p: 6.1, h: 4.1, cor: "#f4a261" },
+    { nome: "Ciclohexanona", d: 17.8, p: 6.3, h: 5.1, cor: "#d62828" },
+
+    // Ésteres
+    { nome: "Acetato de Etila", d: 15.8, p: 5.3, h: 7.2, cor: "#ffb703" },
+    { nome: "Acetato de Butila", d: 15.8, p: 3.7, h: 6.3, cor: "#fb8500" },
+    { nome: "Propionato de Etila", d: 15.5, p: 5.1, h: 5.5, cor: "#ffaa00" },
+
+    // Hidrocarbonetos Aromáticos
+    { nome: "Benzeno", d: 18.4, p: 0.0, h: 2.0, cor: "#606c38" },
+    { nome: "Tolueno", d: 18.0, p: 1.4, h: 2.0, cor: "#283618" },
+    { nome: "Xileno (Mistura)", d: 17.6, p: 1.0, h: 3.1, cor: "#dda15e" },
+    { nome: "Estireno", d: 18.6, p: 1.0, h: 4.1, cor: "#bc6c25" },
+
+    // Hidrocarbonetos Alifáticos
+    { nome: "n-Hexano", d: 14.9, p: 0.0, h: 0.0, cor: "#adb5bd" },
+    { nome: "n-Heptano", d: 15.3, p: 0.0, h: 0.0, cor: "#6c757d" },
+    { nome: "Ciclohexano", d: 16.8, p: 0.0, h: 0.2, cor: "#495057" },
+
+    // Solventes Clorados
+    { nome: "Diclorometano (DCM)", d: 18.2, p: 6.3, h: 6.1, cor: "#52796f" },
+    { nome: "Clorofórmio", d: 17.8, p: 3.1, h: 5.7, cor: "#8ab17d" },
+    { nome: "Tricloroetileno", d: 18.0, p: 3.1, h: 5.3, cor: "#2f3e46" },
+
+    // Éteres e Apróticos Polares
+    { nome: "THF", d: 16.8, p: 5.7, h: 8.0, cor: "#8338ec" },
+    { nome: "Dioxano", d: 19.0, p: 1.8, h: 7.4, cor: "#3a0ca3" },
+    { nome: "DMF", d: 17.4, p: 13.7, h: 11.3, cor: "#f15bb5" },
+    { nome: "DMSO", d: 18.4, p: 16.4, h: 10.2, cor: "#ff006e" },
+    { nome: "NMP", d: 18.0, p: 12.3, h: 7.2, cor: "#c1121f" },
+
+    // Química Verde
+    { nome: "D-Limoneno", d: 16.5, p: 1.4, h: 3.3, cor: "#38b000" },
+    { nome: "Lactato de Etila", d: 16.0, p: 7.6, h: 12.5, cor: "#70e000" },
+    { nome: "Gama-Valerolactona", d: 18.3, p: 13.0, h: 6.2, cor: "#008000" },
   ];
+
   atualizarSolventes3D();
 }
 
@@ -691,8 +758,6 @@ document.getElementById("clearSolventsBtn").addEventListener("click", () => {
   atualizarSolventes3D();
   infoDiv.classList.add("d-none");
   infoDiv.style.display = "none";
-  document.getElementById("iaSuggestion").innerHTML =
-    "Nenhum solvente. Adicione alguns.";
 });
 
 document.getElementById("recommendBtn").addEventListener("click", recomendar);
@@ -701,13 +766,13 @@ document.getElementById("exportPdfBtn").addEventListener("click", exportPDF);
 // ============================================
 // INICIALIZAÇÃO
 // ============================================
-document.getElementById("soluteD").value = 25.0;
+document.getElementById("soluteD").value = 16.5; // Exemplo genérico
 document.getElementById("soluteP").value = 5.0;
-document.getElementById("soluteH").value = 10.0;
+document.getElementById("soluteH").value = 5.0;
 document.getElementById("sphereRadius").value = 5.0;
 
-criarEsfera(5.0, new THREE.Vector3(25, 5, 10));
-atualizarSoluto(25, 5, 10);
+criarEsfera(5.0, new THREE.Vector3(16.5, 5, 5));
+atualizarSoluto(16.5, 5, 5);
 carregarSolventesIniciais();
 
 // ============================================
@@ -722,9 +787,8 @@ function animate() {
 animate();
 
 // ============================================
-// REDIMENSIONAMENTO RESPONSIVO AVANÇADO
+// REDIMENSIONAMENTO RESPONSIVO
 // ============================================
-
 function resizeScene() {
   const width = container.clientWidth;
   const height = container.clientHeight;
@@ -735,7 +799,6 @@ function resizeScene() {
   camera.updateProjectionMatrix();
 
   renderer.setSize(width, height);
-
   renderer.setPixelRatio(
     Math.min(window.devicePixelRatio, window.innerWidth < 768 ? 1.5 : 2),
   );
@@ -743,39 +806,30 @@ function resizeScene() {
   labelRenderer.setSize(width, height);
 
   if (window.innerWidth < 576) {
-    // Smartphone
     camera.position.set(60, 50, 60);
   } else if (window.innerWidth < 992) {
-    // Tablet
     camera.position.set(50, 40, 50);
   } else {
-    // Desktop
     camera.position.set(40, 30, 40);
   }
 
   camera.lookAt(15, 10, 10);
-
   controls.update();
-
   renderer.render(scene, camera);
   labelRenderer.render(scene, camera);
 }
 
 window.addEventListener("resize", resizeScene);
-
-window.addEventListener("orientationchange", () => {
-  setTimeout(resizeScene, 300);
-});
-
+window.addEventListener("orientationchange", () =>
+  setTimeout(resizeScene, 300),
+);
 window.addEventListener("load", resizeScene);
-
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) {
-    resizeScene();
-  }
+  if (!document.hidden) resizeScene();
 });
 
 resizeScene();
+
 // ============================================
 // ALTERNÂNCIA DE TEMA (CLARO/ESCURO)
 // ============================================
@@ -784,7 +838,9 @@ const body = document.body;
 
 function updateThemeIcon(isDark) {
   const icon = themeToggle.querySelector("i");
-  icon.className = isDark ? "bi bi-moon-fill" : "bi bi-sun-fill";
+  if (icon) {
+    icon.className = isDark ? "bi bi-moon-fill" : "bi bi-sun-fill";
+  }
 }
 
 const savedTheme = localStorage.getItem("hansenTheme");
