@@ -11,7 +11,11 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   1000,
 );
-camera.position.set(40, 30, 40);
+if (window.innerWidth < 768) {
+  camera.position.set(55, 45, 55);
+} else {
+  camera.position.set(40, 30, 40);
+}
 camera.lookAt(15, 10, 10);
 
 const renderer = new THREE.WebGLRenderer({
@@ -20,7 +24,9 @@ const renderer = new THREE.WebGLRenderer({
   preserveDrawingBuffer: true, // ESSENCIAL PARA CAPTURA DO PDF
 });
 renderer.setSize(container.clientWidth, container.clientHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(
+  Math.min(window.devicePixelRatio, window.innerWidth < 768 ? 1.5 : 2),
+);
 container.appendChild(renderer.domElement);
 
 const labelRenderer = new THREE.CSS2DRenderer();
@@ -282,7 +288,7 @@ function atualizarSolventes3D() {
   }
 
   solvents.forEach((sol) => {
-    const geom = new THREE.SphereGeometry(0.8, 20, 20);
+    const geom = new THREE.SphereGeometry(0.3, 12, 12);
     const mat = new THREE.MeshStandardMaterial({
       color: sol.cor,
       emissive: 0x222222,
@@ -716,21 +722,60 @@ function animate() {
 animate();
 
 // ============================================
-// REDIMENSIONAMENTO RESPONSIVO
+// REDIMENSIONAMENTO RESPONSIVO AVANÇADO
 // ============================================
-window.addEventListener("resize", () => {
+
+function resizeScene() {
   const width = container.clientWidth;
   const height = container.clientHeight;
+
+  if (width === 0 || height === 0) return;
+
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
+
   renderer.setSize(width, height);
+
+  renderer.setPixelRatio(
+    Math.min(window.devicePixelRatio, window.innerWidth < 768 ? 1.5 : 2),
+  );
+
   labelRenderer.setSize(width, height);
+
+  if (window.innerWidth < 576) {
+    // Smartphone
+    camera.position.set(60, 50, 60);
+  } else if (window.innerWidth < 992) {
+    // Tablet
+    camera.position.set(50, 40, 50);
+  } else {
+    // Desktop
+    camera.position.set(40, 30, 40);
+  }
+
+  camera.lookAt(15, 10, 10);
+
+  controls.update();
+
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+}
+
+window.addEventListener("resize", resizeScene);
+
+window.addEventListener("orientationchange", () => {
+  setTimeout(resizeScene, 300);
 });
 
-setTimeout(() => {
-  window.dispatchEvent(new Event("resize"));
-}, 100);
+window.addEventListener("load", resizeScene);
 
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    resizeScene();
+  }
+});
+
+resizeScene();
 // ============================================
 // ALTERNÂNCIA DE TEMA (CLARO/ESCURO)
 // ============================================
